@@ -9,54 +9,38 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
-      packages: write
+      packages: write  # needed to push to GHCR
 
     steps:
-      - name: Checkout repo
+      # 1️⃣ Checkout the repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Log in to GHCR
+      # 2️⃣ Log in to GHCR
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 3️⃣ Setup Buildx for multi-arch
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Build amd64
-      - name: Build amd64 image
+      # 4️⃣ Build and push multi-arch images
+      - name: Build and push Docker image (multi-platform)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository_owner }}/unifi2netbox:amd64
-            ghcr.io/${{ github.repository_owner }}/unifi2netbox:${{ github.sha }}-amd64
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/unifi2netbox:amd64
-          cache-to: type=registry,mode=max,ref=ghcr.io/${{ github.repository_owner }}/unifi2netbox:amd64
-
-      # Build arm64
-      - name: Build arm64 image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          platforms: linux/arm64
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/unifi2netbox:arm64
-            ghcr.io/${{ github.repository_owner }}/unifi2netbox:${{ github.sha }}-arm64
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/unifi2netbox:arm64
-          cache-to: type=registry,mode=max,ref=ghcr.io/${{ github.repository_owner }}/unifi2netbox:arm64
-
-      # Create multi-arch manifest
-      - name: Create and push multi-arch manifest
-        run: |
-          docker manifest create ghcr.io/${{ github.repository_owner }}/unifi2netbox:latest \
-            ghcr.io/${{ github.repository_owner }}/unifi2netbox:amd64 \
-            ghcr.io/${{ github.repository_owner }}/unifi2netbox:arm64
-          docker manifest push ghcr.io/${{ github.repository_owner }}/unifi2netbox:latest
+            ghcr.io/${{ github.repository_owner }}/unifi2netbox:latest
+            ghcr.io/${{ github.repository_owner }}/unifi2netbox:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/unifi2netbox:${{ github.ref_name }}
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/unifi2netbox:latest
+          cache-to: type=registry,mode=max,ref=ghcr.io/${{ github.repository_owner }}/unifi2netbox:latest
